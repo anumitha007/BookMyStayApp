@@ -1,6 +1,4 @@
-
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 class Reservation {
     String guestName;
@@ -10,30 +8,74 @@ class Reservation {
         this.guestName = guestName;
         this.roomType = roomType;
     }
+}
 
-    public void displayReservation() {
-        System.out.println("Guest: " + guestName + " | Requested Room: " + roomType);
+class RoomInventory {
+    private HashMap<String, Integer> availability = new HashMap<>();
+
+    public RoomInventory() {
+        availability.put("Single", 2);
+        availability.put("Double", 2);
+        availability.put("Suite", 1);
+    }
+
+    public boolean isAvailable(String roomType) {
+        return availability.getOrDefault(roomType, 0) > 0;
+    }
+
+    public void decrement(String roomType) {
+        availability.put(roomType, availability.get(roomType) - 1);
+    }
+
+    public void displayInventory() {
+        System.out.println("\nCurrent Inventory:");
+        for (String type : availability.keySet()) {
+            System.out.println(type + " Rooms Available: " + availability.get(type));
+        }
     }
 }
 
-class BookingRequestQueue {
+class BookingService {
 
     private Queue<Reservation> requestQueue;
+    private RoomInventory inventory;
 
-    public BookingRequestQueue() {
-        requestQueue = new LinkedList<>();
+    private Set<String> allocatedRoomIds = new HashSet<>();
+    private HashMap<String, Set<String>> roomAllocations = new HashMap<>();
+
+    private int idCounter = 1;
+
+    public BookingService(Queue<Reservation> requestQueue, RoomInventory inventory) {
+        this.requestQueue = requestQueue;
+        this.inventory = inventory;
     }
 
-    public void addRequest(Reservation reservation) {
-        requestQueue.add(reservation);
-        System.out.println("Booking request added for " + reservation.guestName);
-    }
+    public void processBookings() {
 
-    public void displayRequests() {
-        System.out.println("\nCurrent Booking Request Queue:");
+        while (!requestQueue.isEmpty()) {
 
-        for (Reservation r : requestQueue) {
-            r.displayReservation();
+            Reservation r = requestQueue.poll();
+            String roomType = r.roomType;
+
+            if (inventory.isAvailable(roomType)) {
+
+                String roomId = roomType.substring(0,1).toUpperCase() + idCounter++;
+                allocatedRoomIds.add(roomId);
+
+                roomAllocations.putIfAbsent(roomType, new HashSet<>());
+                roomAllocations.get(roomType).add(roomId);
+
+                inventory.decrement(roomType);
+
+                System.out.println("Reservation Confirmed");
+                System.out.println("Guest: " + r.guestName);
+                System.out.println("Room Type: " + roomType);
+                System.out.println("Assigned Room ID: " + roomId);
+                System.out.println();
+
+            } else {
+                System.out.println("No available rooms for " + roomType + " for guest " + r.guestName);
+            }
         }
     }
 }
@@ -42,16 +84,19 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        Queue<Reservation> bookingQueue = new LinkedList<>();
 
-        Reservation r1 = new Reservation("Alice", "Single Room");
-        Reservation r2 = new Reservation("Bob", "Double Room");
-        Reservation r3 = new Reservation("Charlie", "Suite Room");
+        bookingQueue.add(new Reservation("Alice", "Single"));
+        bookingQueue.add(new Reservation("Bob", "Double"));
+        bookingQueue.add(new Reservation("Charlie", "Suite"));
+        bookingQueue.add(new Reservation("David", "Suite"));
 
-        bookingQueue.addRequest(r1);
-        bookingQueue.addRequest(r2);
-        bookingQueue.addRequest(r3);
+        RoomInventory inventory = new RoomInventory();
 
-        bookingQueue.displayRequests();
+        BookingService bookingService = new BookingService(bookingQueue, inventory);
+
+        bookingService.processBookings();
+
+        inventory.displayInventory();
     }
 }
